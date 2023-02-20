@@ -3,49 +3,64 @@ import random
 from PySide6 import QtCore, QtWidgets, QtGui
 
 class Cell(QtWidgets.QWidget):
-    CELL_SIZE = 20
+    SIZE = 20
 
-    def __init__ (self, xy):
+    def __init__ (self, i, j):
         super().__init__()
         
-        self.x = xy[0]
-        self.y = xy[1]
+        self.i = i
+        self.j = j
+
+        
+
+        
+
  
 
 
 class Field(QtWidgets.QWidget):
-    CELL_NUM = 100
+    CELL_NUM = 50
     
     def __init__ (self):
         super().__init__()
+        self.setGeometry(0, 0, 1000, 1000)
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.cells = []
+        for i in range(self.CELL_NUM * self.CELL_NUM):
+            self.cells.append(Cell(int(i / self.CELL_NUM), i % self.CELL_NUM))
+            self.layout.addWidget(self.cells[i])
 
 
-# class MyWidget(QtWidgets.QWidget):
-#     def __init__(self):
-#         super().__init__()
 
-#         self.hello = ["Hallo Welt", "Hei maailma", "Hola Mundo", "Привет мир"]
 
-#         self.button = QtWidgets.QPushButton("Click me!")
-#         self.text = QtWidgets.QLabel("Hello World",
-#                                      alignment=QtCore.Qt.AlignCenter)
+class Window(QtWidgets.QWidget):
+    HEIGHT = 720
+    WIDTH = 1280
 
-#         self.layout = QtWidgets.QVBoxLayout(self)
-#         self.layout.addWidget(self.text)
-#         self.layout.addWidget(self.button)
+    def __init__ (self):
+        super().__init__()
+        self.setGeometry(0, 0, self.WIDTH, self.HEIGHT)
+        self.layout = QtWidgets.QVBoxLayout(self)
 
-#         self.button.clicked.connect(self.magic)
+        self.field = Field()
 
-#     @QtCore.Slot()
-#     def magic(self):
-#         self.text.setText(random.choice(self.hello))
+        self.start_button = QtWidgets.QPushButton("START")
+        self.start_button.clicked.connect(self.foo)
+
+        self.layout.addWidget(self.field)
+        self.layout.addWidget(self.start_button)
+
+
+    @QtCore.Slot()
+    def foo(self):
+        print("function doing something")
+
 
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication([])
 
-    widget = MyWidget()
-    widget.resize(800, 600)
-    widget.show()
+    window = Window() 
+    window.show()
 
     sys.exit(app.exec())
