@@ -6,46 +6,70 @@ from PySide6.QtCore import QSize, Slot
 from PySide6.QtWidgets import QStyleOption
 
 class Cell:
-    def __init__(self, x, y, mine):
-        self.x = x
-        self.y = y
+    def __init__(self, i, j, mine):
+        self.i = i
+        self.j = j
         self.mine = mine
-
-
-
-
+        self.opened = False
+    
 
 class Field(QtWidgets.QWidget):
     
-    CELL_NUM = 25
-    CELL_SIZE = 10
+    CELL_NUM = 33
+    FIELD_SIZE = 551
+    CELL_OFFSET = 1
+    CELL_SIZE = (FIELD_SIZE - (CELL_NUM + 1) * CELL_OFFSET) / CELL_NUM
     
     def __init__ (self):
         super().__init__()
-        self.setGeometry(100, 100, 1000, 1000)
+        print(self.FIELD_SIZE, self.CELL_NUM, self.CELL_SIZE, self.CELL_OFFSET)
+        self.setGeometry(100, 100, self.FIELD_SIZE, self.FIELD_SIZE)
         self.layout = QtWidgets.QGridLayout(self)
         self.cells = []
+        self.contentsRect().setWidth(self.FIELD_SIZE)
+        self.contentsRect().setHeight(self.FIELD_SIZE)
         for i in range(self.CELL_NUM * self.CELL_NUM):
-            x = int(i / self.CELL_NUM)
-            y = i % self.CELL_NUM
+            x = i % self.CELL_NUM
+            y = int(i / self.CELL_NUM)
             isMine = random() > 0.9
             self.cells.append(Cell(x, y, isMine))
+        self.cells[0].opened = True
+        self.cells[5].opened = True
+        self.cells[10].opened = True
+        self.cells[15].opened = True
+        self.cells[20].opened = True
 
     def paintEvent(self, event):
+        rect = self.contentsRect()
         painter = QPainter(self)
-        rect = self.contentsRect()
-        boardtop = rect.bottom() - self.CELL_SIZE * rect.height() / self.CELL_SIZE
+        painter.fillRect(0, 0, self.FIELD_SIZE, self.FIELD_SIZE, QColor(0, 0, 0))
         for cell in self.cells:
-            color = QColor.fromRgb(255, 0, 0) if cell.mine else QColor.fromRgb(0, 255, 0)
-            self.draw_square(painter, rect.left() + cell.x * self.CELL_SIZE, boardtop + cell.y * self.CELL_SIZE, color)
+            self.draw_cell(painter, cell)
+        
+    def draw_cell(self, painter, cell):
+        if cell.opened:
+            if cell.mine:
+                color = QColor.fromRgb(255, 0, 0)
+            else:
+                color = QColor.fromRgb(0, 255, 0)
+        else:
+            color = QColor.fromRgb(99, 92, 92)
+        x = cell.i * (self.CELL_SIZE + self.CELL_OFFSET) + self.CELL_OFFSET
+        y = cell.j * (self.CELL_SIZE + self.CELL_OFFSET) + self.CELL_OFFSET
+        painter.fillRect(x, y, self.CELL_SIZE, self.CELL_SIZE, color)
+
+    def cells_around(self, cell):
+        num = 0
+
+    def mousePressEvent(self, event):
+        pos_i = int((event.x() - self.CELL_OFFSET) / (self.CELL_SIZE + self.CELL_OFFSET))
+        pos_j = int((event.y() - self.CELL_OFFSET) / (self.CELL_SIZE + self.CELL_OFFSET))
+        i = int(pos_j * self.CELL_NUM + pos_i)
+        print(pos_i, pos_j, i)
+        self.cells[i].opened = True
+        self.repaint()
         
 
-    def draw_square(self, painter, x, y, color):
-        rect = self.contentsRect()
-        painter.fillRect(x + 1, y + 1, rect.width() / self.CELL_SIZE - 2, rect.height() / self.CELL_SIZE - 2, color)
-
-
-        
 
 
     
