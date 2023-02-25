@@ -20,6 +20,7 @@ class Field(QtWidgets.QWidget):
     FIELD_SIZE = 551
     CELL_OFFSET = 1
     CELL_SIZE = (FIELD_SIZE - (CELL_NUM + 1) * CELL_OFFSET) / CELL_NUM
+    MINE_CHANCE = 0.1
     
     def __init__ (self):
         super().__init__()
@@ -30,7 +31,7 @@ class Field(QtWidgets.QWidget):
         self.contentsRect().setWidth(self.FIELD_SIZE)
         self.contentsRect().setHeight(self.FIELD_SIZE)
         for i in range(self.CELL_NUM * self.CELL_NUM):
-            isMine = random() > 0.9
+            isMine = random() > (1 - self.MINE_CHANCE)
             self.cells.append(Cell(int(i / self.CELL_NUM), i % self.CELL_NUM, isMine))
         for cell in self.cells:
             cell.mines_around = self.mines_around(cell)
@@ -48,8 +49,10 @@ class Field(QtWidgets.QWidget):
         y = cell.i * (self.CELL_SIZE + self.CELL_OFFSET) + self.CELL_OFFSET
         if cell.opened & cell.mine:
             color = QColor.fromRgb(255, 0, 0)
+        elif (cell.opened) & (cell.mines_around > 0):
+            color = QColor.fromRgb(0, 0, 255)
         elif cell.opened:
-                color = QColor.fromRgb(0, 255, 0)
+            color = QColor.fromRgb(0, 155, 50)
         else:
             color = QColor.fromRgb(99, 92, 92)
         painter.fillRect(x, y, self.CELL_SIZE, self.CELL_SIZE, color)
@@ -63,34 +66,45 @@ class Field(QtWidgets.QWidget):
     def mines_around(self, cell):
         i = cell.i
         j = cell.j
-        id = i * self.CELL_NUM + j
         num = 0
         for di in [-1, 0, 1]:
             for dj in [-1, 0, 1]:
-                neighbour_id = (i + di) * self.CELL_NUM + j + dj 
-                if (neighbour_id >= 0) & (neighbour_id < len(self.cells)):
-                    num += 1 if self.cells[neighbour_id].mine == True else 0
+                neighbour = self.get_cell(i + di, j + dj)
+                if (neighbour):
+                    if (neighbour.mine):
+                        num += 1
         return num
 
     def mousePressEvent(self, event):
         i = int((event.y() - self.CELL_OFFSET) / (self.CELL_SIZE + self.CELL_OFFSET))
         j = int((event.x() - self.CELL_OFFSET) / (self.CELL_SIZE + self.CELL_OFFSET))
-        id = int(i * self.CELL_NUM + j)
-        self.cells[id].opened = True
-        print(self.cells[id].mines_around)
+        cell = self.get_cell(i, j)
+        self.open_neighbour(cell)
         self.repaint()
 
     #TODO
     def open_neighbour(self, cell):
-        cell.opened = True
-        if cell.mines_around == 0:
+        if (cell.mines_around == 0) & (cell.opened == False):
+            cell.opened = True
             i = cell.i
             j = cell.j
             if self.get_cell(i - 1, j):
-                self.open_neighbour(self.cells[cell.j - 1])
+                self.open_neighbour(self.cells[(i - 1) * self.CELL_NUM + j])
+            if (self.get_cell(i, j - 1)):
+                self.open_neighbour(self.cells[i * self.CELL_NUM + j - 1])
+            if (self.get_cell(i + 1, j)):
+                self.open_neighbour(self.cells[(i + 1) * self.CELL_NUM + j])
+            if (self.get_cell(i, j + 1)):
+                self.open_neighbour(self.cells[i * self.CELL_NUM + j + 1])
+        else:
+            cell.opened = True
+
+
     #TODO
     def get_cell(self, i, j):
-        return self.cells[j * self.CELL_NUM + i]
+        if (i >= 0) & (i < self.CELL_NUM) & (j >= 0) & (j < self.CELL_NUM):
+            return self.cells[i * self.CELL_NUM + j]
+        return None
 
     def open_all(self):
         for cell in self.cells:
