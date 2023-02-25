@@ -1,9 +1,13 @@
 import sys
 from random import random
 from PySide6 import QtCore, QtWidgets, QtGui
-from PySide6.QtGui import QPalette, QPainter, QPen, QBrush, QColor
-from PySide6.QtCore import QSize, Slot
+from PySide6.QtGui import QPalette, QPainter, QPen, QBrush, QColor, QMouseEvent
+from PySide6.QtCore import QSize, Slot, Qt
 from PySide6.QtWidgets import QStyleOption
+
+#TODO: rmb places flag
+#TODO: opening mine ends game
+#TODO: bot himself
 
 class Cell:
     def __init__(self, i, j, mine):
@@ -12,6 +16,7 @@ class Cell:
         self.mine = mine
         self.opened = False
         self.mines_around = 0
+        self.flag = False
     
 
 class Field(QtWidgets.QWidget):
@@ -36,6 +41,7 @@ class Field(QtWidgets.QWidget):
         for cell in self.cells:
             cell.mines_around = self.mines_around(cell)
 
+
     def paintEvent(self, event):
         rect = self.contentsRect()
         painter = QPainter(self)
@@ -43,25 +49,31 @@ class Field(QtWidgets.QWidget):
         for cell in self.cells:
             self.draw_cell(painter, cell)
         
-    #TODO: better code
+
     def draw_cell(self, painter, cell):
         x = cell.j * (self.CELL_SIZE + self.CELL_OFFSET) + self.CELL_OFFSET
         y = cell.i * (self.CELL_SIZE + self.CELL_OFFSET) + self.CELL_OFFSET
+        sym = ""
         if cell.opened & cell.mine:
-            color = QColor.fromRgb(255, 0, 0)
+            color = QColor.fromRgb(227, 68, 48)
+            sym = "#"
         elif (cell.opened) & (cell.mines_around > 0):
-            color = QColor.fromRgb(0, 0, 255)
+            color = QColor.fromRgb(126, 189, 194)
+            sym = str(cell.mines_around)
         elif cell.opened:
-            color = QColor.fromRgb(0, 155, 50)
+            color = QColor.fromRgb(35, 31, 32)
+        elif cell.flag:
+            color = QColor.fromRgb(126, 189, 214)
+            sym = " !"
         else:
-            color = QColor.fromRgb(99, 92, 92)
+            color = QColor.fromRgb(239, 230, 221)
         painter.fillRect(x, y, self.CELL_SIZE, self.CELL_SIZE, color)
-        if (cell.opened) & (cell.mine == False):
-            font = painter.font()
-            font.setPixelSize(self.CELL_SIZE)
-            painter.setFont(font)
-            painter.setPen(QColor.fromRgb(0, 0, 0))
-            painter.drawText(x + self.CELL_SIZE * 1/10, y + self.CELL_SIZE * 3/4, str(cell.mines_around))
+        font = painter.font()
+        font.setPixelSize(self.CELL_SIZE)
+        painter.setFont(font)
+        painter.setPen(QColor.fromRgb(0, 0, 0))
+        painter.drawText(x + self.CELL_SIZE * 1/10, y + self.CELL_SIZE * 3/4, sym)
+
 
     def mines_around(self, cell):
         i = cell.i
@@ -75,16 +87,20 @@ class Field(QtWidgets.QWidget):
                         num += 1
         return num
 
+
     def mousePressEvent(self, event):
-        i = int((event.y() - self.CELL_OFFSET) / (self.CELL_SIZE + self.CELL_OFFSET))
-        j = int((event.x() - self.CELL_OFFSET) / (self.CELL_SIZE + self.CELL_OFFSET))
+        i = int((event.position().y() - self.CELL_OFFSET) / (self.CELL_SIZE + self.CELL_OFFSET))
+        j = int((event.position().x() - self.CELL_OFFSET) / (self.CELL_SIZE + self.CELL_OFFSET))
         cell = self.get_cell(i, j)
-        self.open_neighbour(cell)
+        if (event.button() == Qt.MouseButton.LeftButton) & (not cell.flag):
+            self.open_neighbour(cell)
+        elif (event.button() == Qt.MouseButton.RightButton) & (not cell.opened):
+            cell.flag = not cell.flag
         self.repaint()
 
-    #TODO
+
     def open_neighbour(self, cell):
-        if (cell.mines_around == 0) & (cell.opened == False):
+        if (cell.mines_around == 0) & (not cell.opened):
             cell.opened = True
             i = cell.i
             j = cell.j
@@ -100,7 +116,6 @@ class Field(QtWidgets.QWidget):
             cell.opened = True
 
 
-    #TODO
     def get_cell(self, i, j):
         if (i >= 0) & (i < self.CELL_NUM) & (j >= 0) & (j < self.CELL_NUM):
             return self.cells[i * self.CELL_NUM + j]
@@ -108,6 +123,7 @@ class Field(QtWidgets.QWidget):
 
     def open_all(self):
         for cell in self.cells:
+            cell.flag = False
             cell.opened = True
         self.repaint()
         
