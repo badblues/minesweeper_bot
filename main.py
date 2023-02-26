@@ -5,6 +5,7 @@ from PySide6.QtGui import QPalette, QPainter, QPen, QBrush, QColor, QMouseEvent
 from PySide6.QtCore import QSize, Slot, Qt
 from PySide6.QtWidgets import QStyleOption
 
+#TODO: better mines spawning alg
 #TODO: fix layout problems
 #TODO: bot himself
 
@@ -20,16 +21,17 @@ class Cell:
 
 class Field(QtWidgets.QWidget):
     
-    CELL_NUM = 20
+    CELL_NUM = 10
     FIELD_SIZE = 551
     CELL_OFFSET = 1
     CELL_SIZE = (FIELD_SIZE - (CELL_NUM + 1) * CELL_OFFSET) / CELL_NUM
     MINE_CHANCE = 0.1
-    GAMEOVER = False
+    GAME_STOPPED = False
     
-    def __init__ (self):
+    def __init__ (self, window):
         super().__init__()
         print(self.FIELD_SIZE, self.CELL_NUM, self.CELL_SIZE, self.CELL_OFFSET)
+        self.window = window
         self.setGeometry(100, 100, self.FIELD_SIZE, self.FIELD_SIZE)
         self.cells = []
         self.contentsRect().setWidth(self.FIELD_SIZE)
@@ -87,17 +89,34 @@ class Field(QtWidgets.QWidget):
         i = int((event.position().y() - self.CELL_OFFSET) / (self.CELL_SIZE + self.CELL_OFFSET))
         j = int((event.position().x() - self.CELL_OFFSET) / (self.CELL_SIZE + self.CELL_OFFSET))
         cell = self.get_cell(i, j)
-        if (self.GAMEOVER):
+        if (self.GAME_STOPPED):
             return
         if (event.button() == Qt.MouseButton.LeftButton) & (not cell.flag):
             if (cell.mine):
                 cell.opened = True
-                self.GAMEOVER = True
+                self.stop_game()
             else:
                 self.open_neighbour(cell)
+                if self.check_for_win():
+                    self.stop_game()
         elif (event.button() == Qt.MouseButton.RightButton) & (not cell.opened):
             cell.flag = not cell.flag
         self.repaint()
+
+
+    def stop_game(self):
+        self.GAME_STOPPED = True
+        for cell in self.cells:
+            if cell.mine:
+                cell.flag = False
+                cell.opened = True
+
+
+    def check_for_win(self):
+        for cell in self.cells:
+            if (not cell.mine) & (not cell.opened):
+                return False
+        return True
 
 
     def open_neighbour(self, cell):
@@ -133,7 +152,7 @@ class Field(QtWidgets.QWidget):
 
 
     def generate(self):
-        self.GAMEOVER = False
+        self.GAME_STOPPED = False
         self.cells.clear()
         for i in range(self.CELL_NUM * self.CELL_NUM):
             isMine = random() > (1 - self.MINE_CHANCE)
@@ -157,14 +176,16 @@ class Window(QtWidgets.QWidget):
         self.setFixedSize(QSize(self.WIDTH, self.HEIGHT))
         self.layout = QtWidgets.QGridLayout(self)
     
-        self.field = Field()
+        self.field = Field(self)
         self.restart_button = QtWidgets.QPushButton("RESTART")
         self.restart_button.clicked.connect(self.restart)
         self.solve_button = QtWidgets.QPushButton("SOLVE")
+        self.label = QtWidgets.QLabel("MINESWEEPER")
 
         self.layout.addWidget(self.field, 0, 0)
         self.layout.addWidget(self.restart_button, 1, 0)
         self.layout.addWidget(self.solve_button, 1, 1)
+        #self.layout.addWidget(self.label, 1, 2
 
 
     @Slot()
