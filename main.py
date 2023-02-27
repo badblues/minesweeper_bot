@@ -1,9 +1,10 @@
 import sys
 from random import random
-from PySide6 import QtCore, QtWidgets, QtGui
-from PySide6.QtGui import QPalette, QPainter, QPen, QBrush, QColor, QMouseEvent
-from PySide6.QtCore import QSize, Slot, Qt
+from PySide6 import QtWidgets, QtUiTools
+from PySide6.QtGui import *
+from PySide6.QtCore import *
 from PySide6.QtWidgets import QStyleOption
+from PySide6.QtUiTools import QUiLoader
 
 #TODO: better mines spawning alg
 #TODO: fix layout problems
@@ -21,8 +22,8 @@ class Cell:
 
 class Field(QtWidgets.QWidget):
     
-    CELL_NUM = 10
-    FIELD_SIZE = 551
+    CELL_NUM = 30
+    FIELD_SIZE = 700
     CELL_OFFSET = 1
     CELL_SIZE = (FIELD_SIZE - (CELL_NUM + 1) * CELL_OFFSET) / CELL_NUM
     MINE_CHANCE = 0.1
@@ -32,10 +33,9 @@ class Field(QtWidgets.QWidget):
         super().__init__()
         print(self.FIELD_SIZE, self.CELL_NUM, self.CELL_SIZE, self.CELL_OFFSET)
         self.window = window
-        self.setGeometry(100, 100, self.FIELD_SIZE, self.FIELD_SIZE)
+        self.setMinimumSize(self.FIELD_SIZE, self.FIELD_SIZE)
+        self.setMaximumSize(self.FIELD_SIZE, self.FIELD_SIZE)
         self.cells = []
-        self.contentsRect().setWidth(self.FIELD_SIZE)
-        self.contentsRect().setHeight(self.FIELD_SIZE)
         self.generate()
 
 
@@ -165,32 +165,60 @@ class Field(QtWidgets.QWidget):
 
 
     
-class Window(QtWidgets.QWidget):
-    HEIGHT = 720
+class Window(QtWidgets.QMainWindow):
+
     WIDTH = 1280
+    HEIGHT = 720
 
     def __init__ (self):
         super().__init__()
         self.setWindowTitle("MINESWEEPER BOT")
         self.setGeometry(0, 0, self.WIDTH, self.HEIGHT)
         self.setFixedSize(QSize(self.WIDTH, self.HEIGHT))
-        self.layout = QtWidgets.QGridLayout(self)
+        
+        self.setCentralWidget(QtWidgets.QWidget(self))
+        self.h_layout = QtWidgets.QHBoxLayout(self.centralWidget())
+        self.field_layout = QtWidgets.QHBoxLayout(self.centralWidget())
+        self.field_layout.setContentsMargins(0, 0, 0, 0)
+        self.menu_layout = QtWidgets.QVBoxLayout(self.centralWidget())
+        self.menu_layout.setSpacing(30)
+        self.h_layout.addLayout(self.field_layout, 3)
+        self.h_layout.addLayout(self.menu_layout, 1)
+        print(self.h_layout.stretch(0), self.h_layout.stretch(1))
+        self.centralWidget().show()
+
     
         self.field = Field(self)
         self.restart_button = QtWidgets.QPushButton("RESTART")
         self.restart_button.clicked.connect(self.restart)
         self.solve_button = QtWidgets.QPushButton("SOLVE")
+        self.solve_button.clicked.connect(self.solve)
+        font = QFont()
+        font.setFamily("Ramabhadra")
+        font.setPointSize(36)
         self.label = QtWidgets.QLabel("MINESWEEPER")
-
-        self.layout.addWidget(self.field, 0, 0)
-        self.layout.addWidget(self.restart_button, 1, 0)
-        self.layout.addWidget(self.solve_button, 1, 1)
-        #self.layout.addWidget(self.label, 1, 2
+        self.label.setFont(font)
+        self.label.setMaximumSize(320, 50)
+        self.label.setAlignment(Qt.AlignCenter)
+        menu_spacer = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        field_spacer = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Minimum)
+        self.field_layout.addItem(field_spacer)
+        self.field_layout.addWidget(self.field)
+        self.field_layout.addItem(field_spacer)
+        self.menu_layout.addWidget(self.label, 2)
+        self.menu_layout.addWidget(self.restart_button, 1)
+        self.menu_layout.addWidget(self.solve_button, 1)
+        self.menu_layout.addItem(menu_spacer)
 
 
     @Slot()
     def restart(self):
         self.field.generate()
+
+
+    @Slot()
+    def solve(self):
+        print("solve func")
 
 
 
