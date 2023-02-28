@@ -7,10 +7,13 @@ from PySide6.QtCore import *
 from PySide6.QtWidgets import QStyleOption
 from PySide6.QtUiTools import QUiLoader
 
+#TODO: change game rules that it can't be know beforehand that cell is mine
 #TODO: better mines spawning alg
 #TODO: check code style
 #TODO: bot himself
 
+
+#Cell might be opened OR flagged no matter it being a mine or not
 class Cell:
     def __init__(self, i, j, mine):
         self.i = i
@@ -142,22 +145,11 @@ class Field(QtWidgets.QWidget):
             #self.repaint()
             i = cell.i
             j = cell.j
-            if self.get_cell(i - 1, j):
-                self.open_neighbour(self.cells[(i - 1) * self.CELL_NUM + j])
-            if self.get_cell(i - 1, j - 1):
-                self.open_neighbour(self.cells[(i - 1) * self.CELL_NUM + j - 1])
-            if (self.get_cell(i, j - 1)):
-                self.open_neighbour(self.cells[i * self.CELL_NUM + j - 1])
-            if self.get_cell(i + 1, j - 1):
-                self.open_neighbour(self.cells[(i + 1) * self.CELL_NUM + j - 1])
-            if (self.get_cell(i + 1, j)):
-                self.open_neighbour(self.cells[(i + 1) * self.CELL_NUM + j])
-            if self.get_cell(i + 1, j + 1):
-                self.open_neighbour(self.cells[(i + 1) * self.CELL_NUM + j + 1])
-            if (self.get_cell(i, j + 1)):
-                self.open_neighbour(self.cells[i * self.CELL_NUM + j + 1])
-            if self.get_cell(i - 1, j + 1):
-                self.open_neighbour(self.cells[(i - 1) * self.CELL_NUM + j + 1])
+            for di in [-1, 0, 1]:
+                for dj in [-1, 0, 1]:
+                    cell = self.get_cell(i + di, j + dj)
+                    if cell:
+                        self.open_neighbour(cell)
         elif not cell.mine:
             cell.opened = True
 
@@ -179,7 +171,18 @@ class Field(QtWidgets.QWidget):
         self.repaint()
         
 
+#Solving principles:
+#1. If you can't make any guess, make random guess
+#2. If open cell says a number N, and there are N closed cell around it - flag them
+#
+#
+#
+#
+#
+
 class Solver:
+
+    DELAY = 0.5 #seconds
 
     def __init__(self, field):
         self.field = field
@@ -188,12 +191,47 @@ class Solver:
 
 
     def gameloop(self):
-        if not self.field.game_stopped:
-            i = int(random() * self.cell_num)
-            j = int(random() * self.cell_num)
-            self.field.open_cell(i, j)
-            time.sleep(0.2)
-            self.gameloop()            
+        #while not self.field.game_stopped:
+            time.sleep(self.DELAY)
+            for i in range(self.cell_num):
+                for j in range(self.cell_num):
+                    cell = self.field.get_cell(i, j)
+                    if cell.opened:
+                        if cell.mines_around != 0:
+                            self.look_around(cell)
+            #self.random_guess()
+            #self.gameloop()
+
+
+    def look_around(self, cell):
+        n = cell.mines_around
+        i = cell.i
+        j = cell.j
+        if n > 0:
+            closed_cells = []
+            flagged_cells = []
+            for di in [-1, 0, 1]:
+                for dj in [-1, 0, 1]:
+                    n_cell = self.field.get_cell(i + di, j + dj)
+                    if n_cell:
+                        if not n_cell.opened:
+                            if n_cell.flag:
+                                flagged_cells.append(n_cell)
+                            else:
+                                closed_cells.append(n_cell)
+            if (len(closed_cells) + len(flagged_cells)) == n: #all closed cells are mines
+                for c in closed_cells:
+                    self.field.flag_cell(c.i, c.j)
+            elif len(flagged_cells) == n: #all closed cells are safe
+                for c in closed_cells:
+                    self.field.open_cell(c.i, c.j)
+            
+
+    def random_guess(self):
+        i = int(random() * self.cell_num)
+        j = int(random() * self.cell_num)
+        print("random guess:", i, j)
+        self.field.open_cell(i, j)
 
 
     def solve(self):
