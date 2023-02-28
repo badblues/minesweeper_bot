@@ -1,3 +1,4 @@
+import time
 import sys
 from random import random
 from PySide6 import QtWidgets, QtUiTools
@@ -7,7 +8,7 @@ from PySide6.QtWidgets import QStyleOption
 from PySide6.QtUiTools import QUiLoader
 
 #TODO: better mines spawning alg
-#TODO: fix layout problems
+#TODO: check code style
 #TODO: bot himself
 
 class Cell:
@@ -27,7 +28,8 @@ class Field(QtWidgets.QWidget):
     CELL_OFFSET = 1
     CELL_SIZE = (FIELD_SIZE - (CELL_NUM + 1) * CELL_OFFSET) / CELL_NUM
     MINE_CHANCE = 0.1
-    GAME_STOPPED = False
+    
+    game_stopped = False
     
     def __init__ (self, window):
         super().__init__()
@@ -88,24 +90,39 @@ class Field(QtWidgets.QWidget):
     def mousePressEvent(self, event):
         i = int((event.position().y() - self.CELL_OFFSET) / (self.CELL_SIZE + self.CELL_OFFSET))
         j = int((event.position().x() - self.CELL_OFFSET) / (self.CELL_SIZE + self.CELL_OFFSET))
-        cell = self.get_cell(i, j)
-        if (self.GAME_STOPPED):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.open_cell(i, j)
+        elif event.button() == Qt.MouseButton.RightButton:
+            self.flag_cell(i, j)
+            
+
+
+    def open_cell(self, i, j):
+        if self.game_stopped:
             return
-        if (event.button() == Qt.MouseButton.LeftButton) & (not cell.flag):
+        cell = self.get_cell(i, j)
+        if not cell.flag:
             if (cell.mine):
                 cell.opened = True
                 self.stop_game()
             else:
                 self.open_neighbour(cell)
                 if self.check_for_win():
-                    self.stop_game()
-        elif (event.button() == Qt.MouseButton.RightButton) & (not cell.opened):
+                    self.stop_game() 
+        self.repaint()
+
+
+    def flag_cell(self, i, j):
+        if self.game_stopped:
+            return
+        cell = self.get_cell(i, j)
+        if not cell.opened:
             cell.flag = not cell.flag
         self.repaint()
 
 
     def stop_game(self):
-        self.GAME_STOPPED = True
+        self.game_stopped = True
         for cell in self.cells:
             if cell.mine:
                 cell.flag = False
@@ -122,7 +139,7 @@ class Field(QtWidgets.QWidget):
     def open_neighbour(self, cell):
         if (cell.mines_around == 0) & (not cell.opened):
             cell.opened = True
-            self.repaint()
+            #self.repaint()
             i = cell.i
             j = cell.j
             if self.get_cell(i - 1, j):
@@ -152,7 +169,7 @@ class Field(QtWidgets.QWidget):
 
 
     def generate(self):
-        self.GAME_STOPPED = False
+        self.game_stopped = False
         self.cells.clear()
         for i in range(self.CELL_NUM * self.CELL_NUM):
             isMine = random() > (1 - self.MINE_CHANCE)
@@ -162,7 +179,25 @@ class Field(QtWidgets.QWidget):
         self.repaint()
         
 
+class Solver:
 
+    def __init__(self, field):
+        self.field = field
+        self.cell_num = field.CELL_NUM
+        print(self.cell_num)
+
+
+    def gameloop(self):
+        if not self.field.game_stopped:
+            i = int(random() * self.cell_num)
+            j = int(random() * self.cell_num)
+            self.field.open_cell(i, j)
+            time.sleep(0.2)
+            self.gameloop()            
+
+
+    def solve(self):
+        self.gameloop()
 
     
 class Window(QtWidgets.QMainWindow):
@@ -175,7 +210,6 @@ class Window(QtWidgets.QMainWindow):
         self.setWindowTitle("MINESWEEPER BOT")
         self.setGeometry(0, 0, self.WIDTH, self.HEIGHT)
         self.setFixedSize(QSize(self.WIDTH, self.HEIGHT))
-        
         self.setCentralWidget(QtWidgets.QWidget(self))
         self.h_layout = QtWidgets.QHBoxLayout(self.centralWidget())
         self.field_layout = QtWidgets.QHBoxLayout(self.centralWidget())
@@ -186,8 +220,6 @@ class Window(QtWidgets.QMainWindow):
         self.h_layout.addLayout(self.menu_layout, 1)
         print(self.h_layout.stretch(0), self.h_layout.stretch(1))
         self.centralWidget().show()
-
-    
         self.field = Field(self)
         self.restart_button = QtWidgets.QPushButton("RESTART")
         self.restart_button.clicked.connect(self.restart)
@@ -209,6 +241,7 @@ class Window(QtWidgets.QMainWindow):
         self.menu_layout.addWidget(self.restart_button, 1)
         self.menu_layout.addWidget(self.solve_button, 1)
         self.menu_layout.addItem(menu_spacer)
+        self.solver = Solver(self.field)
 
 
     @Slot()
@@ -218,7 +251,7 @@ class Window(QtWidgets.QMainWindow):
 
     @Slot()
     def solve(self):
-        print("solve func")
+        self.solver.solve()
 
 
 
