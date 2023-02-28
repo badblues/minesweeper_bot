@@ -7,10 +7,10 @@ from PySide6.QtCore import *
 from PySide6.QtWidgets import QStyleOption
 from PySide6.QtUiTools import QUiLoader
 
-#TODO: change game rules that it can't be know beforehand that cell is mine
+#TODO: change game rules that it can't be known beforehand that cell is mine
 #TODO: better mines spawning alg
 #TODO: check code style
-#TODO: bot himself
+#TODO: delay, mine spawn chance and cell num inputs
 
 
 #Cell might be opened OR flagged no matter it being a mine or not
@@ -26,11 +26,11 @@ class Cell:
 
 class Field(QtWidgets.QWidget):
     
-    CELL_NUM = 30
+    CELL_NUM = 50
     FIELD_SIZE = 700
     CELL_OFFSET = 1
     CELL_SIZE = (FIELD_SIZE - (CELL_NUM + 1) * CELL_OFFSET) / CELL_NUM
-    MINE_CHANCE = 0.1
+    MINE_CHANCE = 0.15
     
     game_stopped = False
     
@@ -45,7 +45,6 @@ class Field(QtWidgets.QWidget):
 
 
     def paintEvent(self, event):
-        rect = self.contentsRect()
         painter = QPainter(self)
         painter.fillRect(0, 0, self.FIELD_SIZE, self.FIELD_SIZE, QColor(0, 0, 0))
         for cell in self.cells:
@@ -108,10 +107,12 @@ class Field(QtWidgets.QWidget):
             if (cell.mine):
                 cell.opened = True
                 self.stop_game()
+                self.window.gameover(False)
             else:
                 self.open_neighbour(cell)
                 if self.check_for_win():
                     self.stop_game() 
+                    self.window.gameover(True)
         self.repaint()
 
 
@@ -169,6 +170,14 @@ class Field(QtWidgets.QWidget):
         for cell in self.cells:
             cell.mines_around = self.mines_around(cell)
         self.repaint()
+
+    
+    def closed_cells(self):
+        closed = []
+        for cell in self.cells:
+            if (not cell.opened) & (not cell.flag):
+                closed.append(cell)
+        return closed
         
 
 #Solving principles:
@@ -182,8 +191,6 @@ class Field(QtWidgets.QWidget):
 
 class Solver:
 
-    DELAY = 0.5 #seconds
-
     def __init__(self, field):
         self.field = field
         self.cell_num = field.CELL_NUM
@@ -191,16 +198,17 @@ class Solver:
 
 
     def gameloop(self):
-        #while not self.field.game_stopped:
-            time.sleep(self.DELAY)
+        while not self.field.game_stopped:
+            did_smth = False
             for i in range(self.cell_num):
                 for j in range(self.cell_num):
                     cell = self.field.get_cell(i, j)
                     if cell.opened:
                         if cell.mines_around != 0:
-                            self.look_around(cell)
-            #self.random_guess()
-            #self.gameloop()
+                            if self.look_around(cell):
+                                did_smth = True
+            if not did_smth:
+                self.random_guess()
 
 
     def look_around(self, cell):
@@ -219,19 +227,23 @@ class Solver:
                                 flagged_cells.append(n_cell)
                             else:
                                 closed_cells.append(n_cell)
-            if (len(closed_cells) + len(flagged_cells)) == n: #all closed cells are mines
-                for c in closed_cells:
-                    self.field.flag_cell(c.i, c.j)
-            elif len(flagged_cells) == n: #all closed cells are safe
-                for c in closed_cells:
-                    self.field.open_cell(c.i, c.j)
+            if len(closed_cells) != 0:
+                if len(flagged_cells) == n: #all closed cells are safe
+                    for c in closed_cells:
+                        self.field.open_cell(c.i, c.j)
+                    return True
+                elif (len(closed_cells) + len(flagged_cells)) == n: #all closed cells are mines
+                    for c in closed_cells:
+                        self.field.flag_cell(c.i, c.j)
+                    return True
+            return False
+        return False
             
 
     def random_guess(self):
-        i = int(random() * self.cell_num)
-        j = int(random() * self.cell_num)
-        print("random guess:", i, j)
-        self.field.open_cell(i, j)
+        closed = self.field.closed_cells()
+        i = int(random() * len(closed))
+        self.field.open_cell(closed[i].i, closed[i].j)
 
 
     def solve(self):
@@ -284,12 +296,21 @@ class Window(QtWidgets.QMainWindow):
 
     @Slot()
     def restart(self):
+        self.label.setText("MINESWEEPER")
         self.field.generate()
 
 
     @Slot()
     def solve(self):
+        self.label.setText("SOLVING...")
         self.solver.solve()
+    
+
+    def gameover(self, win):
+        if win:
+            self.label.setText("!!WIN!!")
+        else:
+            self.label.setText("!!BOMBED!!")
 
 
 
