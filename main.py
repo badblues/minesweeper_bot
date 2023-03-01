@@ -7,10 +7,7 @@ from PySide6.QtCore import *
 from PySide6.QtWidgets import QStyleOption
 from PySide6.QtUiTools import QUiLoader
 
-#TODO: change game rules that it can't be known beforehand that cell is mine
-#TODO: better mines spawning alg
 #TODO: check code style
-#TODO: delay, mine spawn chance and cell num inputs
 
 
 #Cell might be opened OR flagged no matter it being a mine or not
@@ -26,21 +23,19 @@ class Cell:
 
 class Field(QtWidgets.QWidget):
     
-    CELL_NUM = 50
     FIELD_SIZE = 700
     CELL_OFFSET = 1
-    CELL_SIZE = (FIELD_SIZE - (CELL_NUM + 1) * CELL_OFFSET) / CELL_NUM
-    MINE_CHANCE = 0.15
-    
-    game_stopped = False
     
     def __init__ (self, window):
         super().__init__()
-        print(self.FIELD_SIZE, self.CELL_NUM, self.CELL_SIZE, self.CELL_OFFSET)
         self.window = window
         self.setMinimumSize(self.FIELD_SIZE, self.FIELD_SIZE)
         self.setMaximumSize(self.FIELD_SIZE, self.FIELD_SIZE)
         self.cells = []
+        self.mine_chance = 0.15
+        self.game_stopped = False
+        self.cell_num = 15
+        self.cell_size = (self.FIELD_SIZE - (self.cell_num + 1) * self.CELL_OFFSET) / self.cell_num
         self.generate()
 
 
@@ -52,8 +47,8 @@ class Field(QtWidgets.QWidget):
         
 
     def draw_cell(self, painter, cell):
-        x = cell.j * (self.CELL_SIZE + self.CELL_OFFSET) + self.CELL_OFFSET
-        y = cell.i * (self.CELL_SIZE + self.CELL_OFFSET) + self.CELL_OFFSET
+        x = cell.j * (self.cell_size + self.CELL_OFFSET) + self.CELL_OFFSET
+        y = cell.i * (self.cell_size + self.CELL_OFFSET) + self.CELL_OFFSET
         sym = ""
         if cell.opened & cell.mine:
             color = QColor.fromRgb(227, 68, 48)
@@ -68,12 +63,12 @@ class Field(QtWidgets.QWidget):
             sym = " !"
         else:
             color = QColor.fromRgb(239, 230, 221)
-        painter.fillRect(x, y, self.CELL_SIZE, self.CELL_SIZE, color)
+        painter.fillRect(x, y, self.cell_size, self.cell_size, color)
         font = painter.font()
-        font.setPixelSize(self.CELL_SIZE)
+        font.setPixelSize(self.cell_size)
         painter.setFont(font)
         painter.setPen(QColor.fromRgb(0, 0, 0))
-        painter.drawText(x + self.CELL_SIZE * 1/10, y + self.CELL_SIZE * 3/4, sym)
+        painter.drawText(x + self.cell_size * 1/10, y + self.cell_size * 3/4, sym)
 
 
     def mines_around(self, cell):
@@ -90,8 +85,8 @@ class Field(QtWidgets.QWidget):
 
 
     def mousePressEvent(self, event):
-        i = int((event.position().y() - self.CELL_OFFSET) / (self.CELL_SIZE + self.CELL_OFFSET))
-        j = int((event.position().x() - self.CELL_OFFSET) / (self.CELL_SIZE + self.CELL_OFFSET))
+        i = int((event.position().y() - self.CELL_OFFSET) / (self.cell_size + self.CELL_OFFSET))
+        j = int((event.position().x() - self.CELL_OFFSET) / (self.cell_size + self.CELL_OFFSET))
         if event.button() == Qt.MouseButton.LeftButton:
             self.open_cell(i, j)
         elif event.button() == Qt.MouseButton.RightButton:
@@ -156,17 +151,17 @@ class Field(QtWidgets.QWidget):
 
 
     def get_cell(self, i, j):
-        if (i >= 0) & (i < self.CELL_NUM) & (j >= 0) & (j < self.CELL_NUM):
-            return self.cells[i * self.CELL_NUM + j]
+        if (i >= 0) & (i < self.cell_num) & (j >= 0) & (j < self.cell_num):
+            return self.cells[i * self.cell_num + j]
         return None
 
 
     def generate(self):
         self.game_stopped = False
         self.cells.clear()
-        for i in range(self.CELL_NUM * self.CELL_NUM):
-            isMine = random() > (1 - self.MINE_CHANCE)
-            self.cells.append(Cell(int(i / self.CELL_NUM), i % self.CELL_NUM, isMine))
+        for i in range(self.cell_num * self.cell_num):
+            isMine = random() > (1 - self.mine_chance)
+            self.cells.append(Cell(int(i / self.cell_num), i % self.cell_num, isMine))
         for cell in self.cells:
             cell.mines_around = self.mines_around(cell)
         self.repaint()
@@ -178,6 +173,17 @@ class Field(QtWidgets.QWidget):
             if (not cell.opened) & (not cell.flag):
                 closed.append(cell)
         return closed
+    
+
+    def set_mine_chance(self, chance):
+        self.mine_chance = chance
+        self.generate()
+
+
+    def set_cells_num(self, num):
+        self.cell_num = num
+        self.cell_size = (self.FIELD_SIZE - (self.cell_num + 1) * self.CELL_OFFSET) / self.cell_num
+        self.generate()
         
 
 #Solving principles:
@@ -193,7 +199,7 @@ class Solver:
 
     def __init__(self, field):
         self.field = field
-        self.cell_num = field.CELL_NUM
+        self.cell_num = field.cell_num
         print(self.cell_num)
 
 
@@ -247,6 +253,7 @@ class Solver:
 
 
     def solve(self):
+        self.cell_num = self.field.cell_num
         self.gameloop()
 
     
@@ -275,6 +282,20 @@ class Window(QtWidgets.QMainWindow):
         self.restart_button.clicked.connect(self.restart)
         self.solve_button = QtWidgets.QPushButton("SOLVE")
         self.solve_button.clicked.connect(self.solve)
+        self.slider = QtWidgets.QSlider(Qt.Horizontal)
+        self.slider.setMaximum(50)
+        self.slider.setSingleStep(1)
+        self.slider.setTickPosition(QtWidgets.QSlider.TicksBelow)
+        self.slider.setTickInterval(5)
+        self.slider.setCursor(Qt.ClosedHandCursor)
+        self.slider.setValue(self.field.mine_chance * 100)
+        self.slider.valueChanged.connect(self.slider_change)
+        self.input_line = QtWidgets.QLineEdit()
+        self.input_line.setMaximumSize(50, 40)
+        self.input_line.setMaxLength(2)
+        self.input_line.setAlignment(Qt.AlignCenter)
+        self.input_line.setValidator(QIntValidator())
+        self.input_line.textChanged.connect(self.input_line_change)
         font = QFont()
         font.setFamily("Ramabhadra")
         font.setPointSize(36)
@@ -290,6 +311,10 @@ class Window(QtWidgets.QMainWindow):
         self.menu_layout.addWidget(self.label, 2)
         self.menu_layout.addWidget(self.restart_button, 1)
         self.menu_layout.addWidget(self.solve_button, 1)
+        self.menu_layout.addWidget(self.slider, 1)
+        h_lay = QtWidgets.QHBoxLayout()
+        h_lay.addWidget(self.input_line)
+        self.menu_layout.addLayout(h_lay, 1)
         self.menu_layout.addItem(menu_spacer)
         self.solver = Solver(self.field)
 
@@ -302,9 +327,24 @@ class Window(QtWidgets.QMainWindow):
 
     @Slot()
     def solve(self):
-        self.label.setText("SOLVING...")
-        self.solver.solve()
+        if (not self.field.game_stopped):
+            self.label.setText("SOLVING...")
+            self.solver.solve()
     
+
+    @Slot()
+    def slider_change(self):
+        self.field.set_mine_chance(self.slider.value() / 100)
+
+
+    @Slot()
+    def input_line_change(self):
+        if self.input_line.text() != "":
+            if self.input_line.text()[0] != '-':
+                num = int(self.input_line.text())
+                if (num > 0) & (num <= 40):
+                    self.field.set_cells_num(num)
+
 
     def gameover(self, win):
         if win:
