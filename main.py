@@ -33,7 +33,7 @@ class Field(QtWidgets.QWidget):
                       * self.CELL_OFFSET) / self.cell_num
     self.generate()
 
-  def paintEvent(self):
+  def paintEvent(self, event):
     painter = QPainter(self)
     painter.fillRect(0, 0, self.FIELD_SIZE, self.FIELD_SIZE, QColor(0, 0, 0))
     for cell in self.cells:
@@ -239,9 +239,9 @@ class Window(QtWidgets.QMainWindow):
     self.setFixedSize(QSize(self.WIDTH, self.HEIGHT))
     self.setCentralWidget(QtWidgets.QWidget(self))
     self.h_layout = QtWidgets.QHBoxLayout(self.centralWidget())
-    self.field_layout = QtWidgets.QHBoxLayout(self.centralWidget())
+    self.field_layout = QtWidgets.QHBoxLayout()
     self.field_layout.setContentsMargins(0, 0, 0, 0)
-    self.menu_layout = QtWidgets.QVBoxLayout(self.centralWidget())
+    self.menu_layout = QtWidgets.QVBoxLayout()
     self.menu_layout.setSpacing(30)
     self.h_layout.addLayout(self.field_layout, 3)
     self.h_layout.addLayout(self.menu_layout, 1)
