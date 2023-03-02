@@ -4,8 +4,6 @@ from PySide6 import QtWidgets
 from PySide6.QtGui import *
 from PySide6.QtCore import *
 
-# TODO: check code style
-
 # Cell might be opened OR flagged no matter it being a mine or not
 class Cell:
   def __init__(self, i, j, mine):
@@ -175,7 +173,6 @@ class Solver:
   def __init__(self, field):
     self.field = field
     self.cell_num = field.cell_num
-    print(self.cell_num)
 
   def gameloop(self):
     while not self.field.game_stopped:
@@ -248,7 +245,6 @@ class Window(QtWidgets.QMainWindow):
     self.menu_layout.setSpacing(30)
     self.h_layout.addLayout(self.field_layout, 3)
     self.h_layout.addLayout(self.menu_layout, 1)
-    print(self.h_layout.stretch(0), self.h_layout.stretch(1))
     self.centralWidget().show()
     self.field = Field(self)
     self.restart_button = QtWidgets.QPushButton("RESTART")
